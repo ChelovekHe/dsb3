@@ -6,8 +6,8 @@ from interfaces.data_loader import INPUT, OUTPUT
 def checkEqual(lst):
    return (lst[1:] == lst[:-1]).all()
 
-def checkAbsSmall(lst):
-    return (abs(lst[1:]-lst[:-1])<0.003).all()
+def checkAbsSmall(lst, tolerance):
+    return (abs(lst[1:]-lst[:-1])<tolerance).all()
 
 # Hounsfield Unit
 class DicomToHU(BasePreprocessor):
@@ -81,7 +81,7 @@ class DicomToHU(BasePreprocessor):
         data = data[sort_ids].T # ZYX to XYZ and sort
         
         #check if spacings are homogenous
-        assert(checkAbsSmall(zdelta)==True), zdelta
+        assert(checkAbsSmall(zdelta,tolerance=0.003)==True), zdelta
         assert(checkEqual(pixelspacings)==True), pixelspacings
 
         spacing = [pixelspacings[0,1], pixelspacings[0,0], zdelta[0]]
