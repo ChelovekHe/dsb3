@@ -32,16 +32,15 @@ class DicomToHU(BasePreprocessor):
         pixelspacings = np.asarray([s["PixelSpacing"] for s in slices], dtype=np.float32)
         
         # Set outside-of-scan pixels to 0, The intercept is usually -1024, so air is approximately 0
-        data[data == -2000] = 0
 
         # Convert to Hounsfield units (HU)
         data = data.astype(np.float32)
         slopes = np.asarray([s["RescaleSlope"] for s in slices], dtype=np.float32)
         intercepts = np.asarray([s["RescaleIntercept"] for s in slices], dtype=np.float32)
-        assert(checkEqual(intercepts)==True)
         if any(slopes != 1.): 
-            data = slopes * data
-        data += intercepts[0]
+            data = slopes[:,None,None] * data
+        data += intercepts[:,None,None]
+        data[data < -1000] = -1000
         #up until here multiple scan trials were not important
 
 
