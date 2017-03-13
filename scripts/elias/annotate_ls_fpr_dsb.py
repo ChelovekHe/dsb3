@@ -108,40 +108,14 @@ def segment_HU_scan_2d(x):
 
 def read_rois(prediction_folder, patient_id):
     return pickle.load(open( prediction_folder+patient_id+'.pkl', 'rb' ))
-    
-def in_mask(roi, ct_scan):
-    roi = np.array(roi).astype(int)
-        
-    #check if the candidate is in the lungs
-    d0_segmentation_mask = segment_HU_scan_2d(pixelnormHU_01(ct_scan[roi[0],:,:]))
-    d1_segmentation_mask = segment_HU_scan_2d(pixelnormHU_01(ct_scan[:,roi[1],:]))
-    d2_segmentation_mask = segment_HU_scan_2d(pixelnormHU_01(ct_scan[:,:,roi[2]]))
 
-    #Construct 2D spherical mask
-    r_mask=0
-    dim_mask = 2*r_mask+1
-    spherical_mask = np.zeros((dim_mask,dim_mask))
-    for x in range(dim_mask):
-        for y in range(dim_mask):
-            dist = (x-r_mask)**2 + (y-r_mask)**2
-            if dist <= (r_mask**2):
-                spherical_mask[x,y] = 1
-
-
-    in_mask_d0 = check_in_mask(d0_segmentation_mask, spherical_mask, r_mask, \
-        roi[1]-r_mask, roi[1]+r_mask+1, roi[2]-r_mask, roi[2]+r_mask+1)
-
-    in_mask_d1 = check_in_mask(d1_segmentation_mask, spherical_mask, r_mask, \
-        roi[0]-r_mask, roi[0]+r_mask+1, roi[2]-r_mask, roi[2]+r_mask+1)
-
-    in_mask_d2 = check_in_mask(d2_segmentation_mask, spherical_mask, r_mask, \
-        roi[0]-r_mask, roi[0]+r_mask+1, roi[1]-r_mask, roi[1]+r_mask+1)
-
-    """
-    majority implementation: A shitty method to bypass the fact that lung segmentation 
-    doesn't work when the lung touches the border of the image
-    """
-    return  (in_mask_d0 or in_mask_d1 or in_mask_d2)   
+def get_3d_mask(ct_scan):
+    norm_ct_scan = pixelnormHU_01(ct_scan)
+    mask = np.zeros(ct_scan.shape)
+    for idx in range(norm_ct_scan.shape[2]):
+        slice = norm_ct_scan[:,:,idx]
+        mask[:,:,idx] = segment_HU_scan_2d(slice)
+    return mask
     
 def plot_masks(roi, ct_scan, sample_id, nidx):
     roi = np.array(roi).astype(int)
@@ -260,9 +234,15 @@ def check_nodules(set, roi_config, fpr_config, iter_predict, x_shared, predictio
         rois = read_rois(prediction_folder, patient_id)
         n_regions += len(rois)
         
+        print volume.shape
+        mask = get_3d_mask(volume)  
+
         rois_in_mask = np.zeros((len(rois)))
         for idx, roi in enumerate(rois):
-            if in_mask(roi/spacing, volume):
+            roi_loc = np.round(roi/spacing).astype(int)
+            print roi_loc
+            print mask[roi_loc]
+            if mask[roi_loc]:
                 rois_in_mask[idx] = 1
         n_regions_in_mask += np.sum(rois_in_mask)
         print '\tregions in mask:', np.sum(rois_in_mask) 
